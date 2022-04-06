@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WP REST APIを使用した一覧ページ</title>
+  <link rel="stylesheet" href="../css/reset.css">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+  <main>
+    <div class="archive">
+      <div class="inner archive__inner">
+        <div class="archive__box">
+          <div class="archive__wrapper" id="js-archive-wrapper">
+            <ul class="archive__list" id="js-archive-list"></ul>
+          </div>
+        </div>
+        <aside class="archive__side-nav">
+          <div class="archive__side-nav-box">
+            <div class="archive__select" id="js-archive-select-wrapper"></div>
+            <div class="archive__sort">
+              <input type="radio" name="sort" id="asc">
+              <label for="asc">昇順</label>
+              <input type="radio" name="sort" id="desc">
+              <label for="desc">降順</label>
+            </div>
+            <div class="archive__search">
+              <input type="text" name="" id="" class="search-field" placeholder="検索キーワード">
+              <button type="button" class="search__button">検索</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</body>
+
+</html>
