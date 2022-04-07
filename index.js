@@ -74,8 +74,8 @@ const addEventListenerForCategorySelect = () => {
   const select = document.getElementById("js-category-select");
   select.addEventListener("change", async (event) => {
     archiveList.textContent = "";
-    const pageNation = document.getElementById("js-pagenation-list");
-    pageNation.textContent = "";
+    const pageNation = document.getElementById("js-pagenation");
+    pageNation && pageNation.remove();
     const selectedCategoryData = await getSelectedCategoryData(setSelectedCategoryEndpoint(event.target));
     if (selectedCategoryData.length === 0) {
       archiveList.textContent = "選択されたカテゴリーの記事がありません";
