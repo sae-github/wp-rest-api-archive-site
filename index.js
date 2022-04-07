@@ -199,56 +199,58 @@ const createPageNationItems = (start, end) => {
   return frag;
 };
 
+const createOmitMark = () => {
+  const dots = createElementWithClassName("li", "archive__pagenation-item");
+  dots.textContent = "...";
+  dots.style.pointerEvents = "none";
+  return dots;
+}
+
 const createLastPageNation = () => {
   const frag = document.createDocumentFragment();
   const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
-  const dots = createElementWithClassName("li", "archive__pagenation-item");
   const anchor = createElementWithClassName("a", "archive__pagenation-link");
   pageNationItem.appendChild(anchor);
   anchor.textContent = totalPage;
-  const a = perPage * (totalPage - 1);
-  anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=${a}`;
-  dots.textContent = "...";
-  dots.style.pointerEvents = "none";
-  frag.appendChild(dots).after(pageNationItem);
+  anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=${perPage * (totalPage - 1)}`;
+  frag.appendChild(createOmitMark()).after(pageNationItem);
   return frag;
 };
 
 const createFirstPageNation = () => {
   const frag = document.createDocumentFragment();
   const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
-  const dots = createElementWithClassName("li", "archive__pagenation-item");
   const anchor = createElementWithClassName("a", "archive__pagenation-link");
   pageNationItem.appendChild(anchor);
   anchor.textContent = 1;
-  dots.textContent = "...";
   anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=0`;
-  frag.appendChild(pageNationItem).after(dots);
+  frag.appendChild(pageNationItem).after(createOmitMark());
   return frag;
 };
 
-const switchPageNation = () => {
-  const pageNationList = document.getElementById("js-pagenation-list");
+const createPageNation = () => {
+  const frag = document.createDocumentFragment();
   if (totalPage <= edges * 2 + 1) {
-    pageNationList.appendChild(createPageNationItems(0, totalPage));
-    return;
+    frag.appendChild(createPageNationItems(0, totalPage));
+    return frag;
   }
 
   if (currentPage < edges * 2 + 1) {
-    pageNationList.appendChild(createPageNationItems(0, edges * 2 + 1));
-    pageNationList.appendChild(createLastPageNation());
-    return;
+    frag.appendChild(createPageNationItems(0, edges * 2 + 1))
+    frag.appendChild(createLastPageNation());
+    return frag;
   }
 
   if (currentPage > totalPage - edges * 2 + 1) {
-    pageNationList.appendChild(createFirstPageNation());
-    pageNationList.appendChild(createPageNationItems(totalPage - edges * 2 - 1, totalPage));
-    return;
+    frag.appendChild(createFirstPageNation())
+    frag.appendChild(createPageNationItems(totalPage - edges * 2 - 1, totalPage));
+    return frag;
   }
 
-  pageNationList.appendChild(createFirstPageNation());
-  pageNationList.appendChild(createPageNationItems(totalPage - edges * 2 - 2, totalPage - 1));
-  pageNationList.appendChild(createLastPageNation());
+  frag.appendChild(createFirstPageNation());
+  frag.appendChild(createPageNationItems(totalPage - edges * 2 - 2, totalPage - 1))
+  frag.appendChild(createLastPageNation());
+  return frag;
 }
 
 const addEventListenerForPageNationItem = () => {
@@ -269,8 +271,9 @@ const addEventListenerForPageNationItem = () => {
 };
 
 const setPageNation = () => {
-  document.getElementById("js-pagenation-list").textContent = "";
-  switchPageNation();
+  const pageNationLList = document.getElementById("js-pagenation-list")
+  pageNationLList.textContent = "";
+  pageNationLList.appendChild(createPageNation());
   toggleSelectedPageNation();
   addEventListenerForPageNationItem();
 };
