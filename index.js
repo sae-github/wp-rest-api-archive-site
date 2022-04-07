@@ -199,11 +199,11 @@ const createPageNationItems = (start, end) => {
   return frag;
 };
 
-const createOmitMark = () => {
-  const dots = createElementWithClassName("li", "archive__pagenation-item");
-  dots.textContent = "...";
-  dots.style.pointerEvents = "none";
-  return dots;
+const createEllipsis = () => {
+  const ellipsis = createElementWithClassName("li", "archive__pagenation-item");
+  ellipsis.textContent = "...";
+  ellipsis.style.pointerEvents = "none";
+  return ellipsis;
 }
 
 const createLastPageNation = () => {
@@ -213,7 +213,7 @@ const createLastPageNation = () => {
   pageNationItem.appendChild(anchor);
   anchor.textContent = totalPage;
   anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=${perPage * (totalPage - 1)}`;
-  frag.appendChild(createOmitMark()).after(pageNationItem);
+  frag.appendChild(createEllipsis()).after(pageNationItem);
   return frag;
 };
 
@@ -224,7 +224,7 @@ const createFirstPageNation = () => {
   pageNationItem.appendChild(anchor);
   anchor.textContent = 1;
   anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=0`;
-  frag.appendChild(pageNationItem).after(createOmitMark());
+  frag.appendChild(pageNationItem).after(createEllipsis());
   return frag;
 };
 
