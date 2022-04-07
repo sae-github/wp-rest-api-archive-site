@@ -1,6 +1,8 @@
 const archiveWrapper = document.getElementById("js-archive-wrapper");
 const archiveList = document.getElementById("js-archive-list");
-let totalPosts;
+let totalPosts, totalPage, categoryId;
+let edges = 2;
+let currentPage = 1;
 let perPage = 5;
 const postApi = "https://itosae.com/wp-json/wp/v2/posts?_embed";
 
@@ -70,20 +72,23 @@ const addEventListenerForCategorySelect = () => {
   const select = document.getElementById("js-category-select");
   select.addEventListener("change", async (event) => {
     archiveList.textContent = "";
+    const pageNation = document.getElementById("js-pagenation");
+    pageNation && pageNation.remove();
     const selectedCategoryData = await getSelectedCategoryData(setSelectedCategoryEndpoint(event.target));
     if (selectedCategoryData.length === 0) {
       archiveList.textContent = "選択されたカテゴリーの記事がありません";
       return;
     }
     archiveList.appendChild(createArticleItems(selectedCategoryData));
+    initPageNation();
   });
 }
 
 const setSelectedCategoryEndpoint = (target) => {
   const postAPI = new URL(postApi);
   postAPI.searchParams.set("per_page", perPage);
-  const selectedOptionCategoryId = target.selectedOptions[0].dataset.categoryId;
-  selectedOptionCategoryId && postAPI.searchParams.set("categories", selectedOptionCategoryId);
+  categoryId = target.selectedOptions[0].dataset.categoryId;
+  categoryId && postAPI.searchParams.set("categories", categoryId);
   return postAPI.href;
 }
 
@@ -160,8 +165,129 @@ const init = async () => {
     archiveList.appendChild(createArticleItems(postData));
     renderCategorySelect(categoryData);
     addEventListenerForCategorySelect();
+    initPageNation();
   }
 };
 
 init();
 
+const renderPageNation = () => {
+  const pageNation = createElementWithClassName("div", "archive__pagenation");
+  const pageNationList = createElementWithClassName("ul", "archive__pagenation-list");
+  pageNation.id = "js-pagenation";
+  pageNationList.id = "js-pagenation-list";
+  archiveWrapper.appendChild(pageNation).appendChild(pageNationList);
+}
+
+const createPageNationItems = (start, end) => {
+  const frag = document.createDocumentFragment();
+  let offset = start * 5;
+  for (let i = start; i < end; i++) {
+    const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
+    const anchor = createElementWithClassName("a", "archive__pagenation-link");
+    anchor.textContent = i + 1;
+    const postAPI = new URL(postApi);
+    postAPI.searchParams.set("per_page", perPage);
+    postAPI.searchParams.set("offset", offset);
+    categoryId && postAPI.searchParams.set("categories", categoryId);
+    anchor.href = postAPI.href;
+    offset += perPage;
+    frag.appendChild(pageNationItem).appendChild(anchor);
+  }
+  return frag;
+};
+
+const createEllipsis = () => {
+  const ellipsis = createElementWithClassName("li", "archive__pagenation-item");
+  ellipsis.textContent = "...";
+  ellipsis.style.pointerEvents = "none";
+  return ellipsis;
+}
+
+const createLastPageNation = () => {
+  const frag = document.createDocumentFragment();
+  const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
+  const anchor = createElementWithClassName("a", "archive__pagenation-link");
+  pageNationItem.appendChild(anchor);
+  anchor.textContent = totalPage;
+  anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=${perPage * (totalPage - 1)}`;
+  frag.appendChild(createEllipsis()).after(pageNationItem);
+  return frag;
+};
+
+const createFirstPageNation = () => {
+  const frag = document.createDocumentFragment();
+  const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
+  const anchor = createElementWithClassName("a", "archive__pagenation-link");
+  pageNationItem.appendChild(anchor);
+  anchor.textContent = 1;
+  anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=0`;
+  frag.appendChild(pageNationItem).after(createEllipsis());
+  return frag;
+};
+
+const createPageNation = () => {
+  const frag = document.createDocumentFragment();
+  if (totalPage <= edges * 2 + 1) {
+    frag.appendChild(createPageNationItems(0, totalPage));
+    return frag;
+  }
+
+  if (currentPage < edges * 2 + 1) {
+    frag.appendChild(createPageNationItems(0, edges * 2 + 1))
+    frag.appendChild(createLastPageNation());
+    return frag;
+  }
+
+  if (currentPage > totalPage - edges * 2 + 1) {
+    frag.appendChild(createFirstPageNation())
+    frag.appendChild(createPageNationItems(totalPage - edges * 2 - 1, totalPage));
+    return frag;
+  }
+
+  frag.appendChild(createFirstPageNation());
+  frag.appendChild(createPageNationItems(totalPage - edges * 2 - 2, totalPage - 1))
+  frag.appendChild(createLastPageNation());
+  return frag;
+}
+
+const addEventListenerForPageNationItem = () => {
+  const pageNationItems = [...document.querySelectorAll(".archive__pagenation-link")];
+  pageNationItems.forEach((item) => {
+    item.addEventListener("click", async (event) => {
+      event.preventDefault();
+      currentPage = event.target.textContent;
+      const archiveList = document.getElementById("js-archive-list");
+      const pageNation = document.getElementById("js-pagenation-list");
+      archiveList.textContent = "";
+      pageNation.textContent = "";
+      const data = await getSelectedCategoryData(event.target.href, archiveList);
+      archiveList.appendChild(createArticleItems(data));
+      setPageNation();
+    });
+  });
+};
+
+const setPageNation = () => {
+  const pageNationLList = document.getElementById("js-pagenation-list")
+  pageNationLList.textContent = "";
+  pageNationLList.appendChild(createPageNation());
+  toggleSelectedPageNation();
+  addEventListenerForPageNationItem();
+};
+
+const toggleSelectedPageNation = () => {
+  const pageNationItems = [...document.querySelectorAll(".archive__pagenation-link")];
+  pageNationItems.forEach((item) => {
+    Number(item.textContent) === Number(currentPage) &&
+      item.parentElement.classList.add("is-selected");
+  });
+};
+
+const initPageNation = () => {
+  if (totalPosts < perPage) return;
+  totalPage = Math.ceil(totalPosts / perPage);
+  currentPage = 1;
+  renderPageNation();
+  setPageNation();
+}
