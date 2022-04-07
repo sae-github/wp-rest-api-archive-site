@@ -1,6 +1,8 @@
 const archiveWrapper = document.getElementById("js-archive-wrapper");
 const archiveList = document.getElementById("js-archive-list");
 let totalPosts;
+let perPage = 5;
+const postApi = "https://itosae.com/wp-json/wp/v2/posts?_embed";
 
 const createElementWithClassName = (type, name) => {
   const element = document.createElement(type);
@@ -18,7 +20,7 @@ const renderLoading = (parent) => {
 
 const removeLoading = () => document.getElementById("js-loading").remove();
 
-const getResponseOrError = async (api) => {
+const getFetchResponseOrError = async (api) => {
   const response = await fetch(api);
   if (response.ok) {
     return response;
@@ -35,35 +37,16 @@ const renderErrorMessage = (error, parent) => {
 
 const getTotalPosts = (response) => response.headers.get("X-WP-Total");
 
-const getPostsData = async (api, loading = false) => {
-  loading && renderLoading(loading);
-  let response;
-  try {
-    response = await getResponseOrError(api);
-    const data = await response.json();
-    return data;
-  } catch (e) {
-    renderErrorMessage(e, parent);
-  } finally {
-    totalPosts = getTotalPosts(response);
-    loading && removeLoading();
-  }
+const getJsonData = async (api) => {
+  const response = await getFetchResponseOrError(api);
+  totalPosts = getTotalPosts(response);
+  return await response.json();
 };
-
-const initArchiveList = () => (archiveList.textContent = "");
 
 const renderCategorySelect = (data) => {
   const selectWrapper = document.getElementById("js-archive-select-wrapper");
   const select = document.createElement("select");
-  select.addEventListener("change", async (e) => {
-    archiveList.textContent = "";
-    const selectedCategoryData = await getSelectedCategoryData(e.target.value);
-    if (selectedCategoryData.length === 0) {
-      archiveList.textContent = "選択されたカテゴリーの記事がありません";
-      return;
-    }
-    renderSelectedCategoryList(selectedCategoryData);
-  });
+  select.id = "js-category-select";
   selectWrapper.appendChild(select).appendChild(createSelectOptions(data));
 };
 
@@ -75,30 +58,45 @@ const createSelectOptions = (data) => {
   frag.appendChild(defaultOption);
   data.forEach((d) => {
     const option = document.createElement("option");
-    option.value = d.id;
+    option.value = d.slug;
+    option.dataset.categoryId = d.id;
     option.textContent = d.name;
     frag.appendChild(option);
   });
   return frag;
 };
 
-const getSelectedCategoryData = async (target) => {
-  const postAPI = new URL("https://itosae.com/wp-json/wp/v2/posts?_embed");
-  postAPI.searchParams.set("per_page", 5);
-  target !== "default" && postAPI.searchParams.set("categories", target);
-  return await getPostsData(postAPI, archiveList);
-};
+const addEventListenerForCategorySelect = () => {
+  const select = document.getElementById("js-category-select");
+  select.addEventListener("change", async (event) => {
+    archiveList.textContent = "";
+    const selectedCategoryData = await getSelectedCategoryData(setSelectedCategoryEndpoint(event.target));
+    if (selectedCategoryData.length === 0) {
+      archiveList.textContent = "選択されたカテゴリーの記事がありません";
+      return;
+    }
+    archiveList.appendChild(createArticleItems(selectedCategoryData));
+  });
+}
 
-const renderSelectedCategoryList = async (postData) => {
-  archiveList.textContent = "";
-  postData.forEach((d) => archiveList.appendChild(createArticleItem(d)));
-};
+const setSelectedCategoryEndpoint = (target) => {
+  const postAPI = new URL(postApi);
+  postAPI.searchParams.set("per_page", perPage);
+  const selectedOptionCategoryId = target.selectedOptions[0].dataset.categoryId;
+  selectedOptionCategoryId && postAPI.searchParams.set("categories", selectedOptionCategoryId);
+  return postAPI.href;
+}
 
-const renderArchiveList = (data) => {
-  const frag = document.createDocumentFragment();
-  data.forEach((d) => frag.appendChild(createArticleItem(d)));
-  archiveList.appendChild(frag);
-};
+const getSelectedCategoryData = async (api) => {
+  renderLoading(archiveWrapper);
+  try {
+    return await getJsonData(api);
+  } catch (error) {
+    renderErrorMessage(error, archiveWrapper);
+  } finally {
+    removeLoading();
+  }
+}
 
 const createArticleDate = (data) => {
   const date = createElementWithClassName("p", "archive__item-date");
@@ -109,35 +107,31 @@ const createArticleDate = (data) => {
   return date;
 };
 
-const createArticleItem = (data) => {
+const createArticleItems = (data) => {
   const frag = document.createDocumentFragment();
-  const archiveItem = createElementWithClassName("li", "archive__item");
-  const archiveLink = createElementWithClassName("a", "archive__item-link");
-  const archiveWrapper = createElementWithClassName(
-    "div",
-    "archive__item-text"
-  );
-  const title = createElementWithClassName("p", "archive__item-title");
-  const label = createElementWithClassName("span", "archive__item-label");
-  label.textContent = data.category_name;
-  title.textContent = data.title.rendered;
-  archiveLink.href = data.link;
-  archiveWrapper.appendChild(label).after(title);
-  archiveWrapper.appendChild(createArticleDate(data));
-  archiveLink.appendChild(createThumbnail(data));
-  frag
-    .appendChild(archiveItem)
-    .appendChild(archiveLink)
-    .appendChild(archiveWrapper);
+  data.forEach((d) => {
+    const archiveItem = createElementWithClassName("li", "archive__item");
+    const archiveLink = createElementWithClassName("a", "archive__item-link");
+    const archiveWrapper = createElementWithClassName("div", "archive__item-text");
+    const title = createElementWithClassName("p", "archive__item-title");
+    const label = createElementWithClassName("span", "archive__item-label");
+    label.textContent = d.category_name;
+    title.textContent = d.title.rendered;
+    archiveLink.href = d.link;
+    archiveWrapper.appendChild(label).after(title);
+    archiveWrapper.appendChild(createArticleDate(d));
+    archiveLink.appendChild(createThumbnail(d));
+    frag
+      .appendChild(archiveItem)
+      .appendChild(archiveLink)
+      .appendChild(archiveWrapper);
+  })
   return frag;
 };
 
 const createThumbnail = (data) => {
   const thumbnailUrl = data._embedded["wp:featuredmedia"][0].source_url;
-  const thumbnailWrapper = createElementWithClassName(
-    "div",
-    "archive__item-thumbnail"
-  );
+  const thumbnailWrapper = createElementWithClassName("div", "archive__item-thumbnail");
   const img = document.createElement("img");
   img.src = thumbnailUrl;
   thumbnailUrl === "" && (img.src = "./img/no-image.jpeg");
@@ -145,28 +139,27 @@ const createThumbnail = (data) => {
   return thumbnailWrapper;
 };
 
-const init = async () => {
-  const [postData, categoryData] = await getPostAndCategoryData();
-  if (postData && categoryData) {
-    renderArchiveList(postData);
-    renderCategorySelect(categoryData);
-  }
-};
-
 const getPostAndCategoryData = async () => {
   const API = {
-    post: "https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5",
+    post: `${postApi}&per_page=${perPage}`,
     category: "https://itosae.com/wp-json/wp/v2/categories",
   };
   renderLoading(archiveWrapper);
   try {
-    return await Promise.all(
-      Object.values(API).map((value) => getPostsData(value))
-    );
+    return await Promise.all(Object.values(API).map((value) => getJsonData(value)));
   } catch (error) {
-    console.error(error);
+    renderErrorMessage(error, archiveWrapper);
   } finally {
     removeLoading();
+  }
+};
+
+const init = async () => {
+  const [postData, categoryData] = await getPostAndCategoryData();
+  if (postData && categoryData) {
+    archiveList.appendChild(createArticleItems(postData));
+    renderCategorySelect(categoryData);
+    addEventListenerForCategorySelect();
   }
 };
 

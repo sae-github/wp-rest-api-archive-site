@@ -75,7 +75,6 @@ a {
   position: relative;
   border: 1px solid #bbbbbb;
   border-radius: 2px;
-  margin-right: 20px;
 }
 
 .archive__sort {
@@ -269,7 +268,6 @@ select {
   background-color: skyblue;
   color: #fff;
   border: 1px solid skyblue;
-
 }
 
 .archive__pagenation-item + .archive__pagenation-item {
