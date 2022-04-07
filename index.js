@@ -146,7 +146,7 @@ const getPostAndCategoryData = async () => {
   };
   renderLoading(archiveWrapper);
   try {
-    return await Promise.all(Object.values(API).map((value) => getJsonData(value)));
+    return await Promise.all(Object.values(API).map(getJsonData));
   } catch (error) {
     renderErrorMessage(error, archiveWrapper);
   } finally {
