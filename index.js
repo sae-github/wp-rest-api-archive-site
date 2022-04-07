@@ -1,7 +1,11 @@
 const archiveWrapper = document.getElementById("js-archive-wrapper");
 const archiveList = document.getElementById("js-archive-list");
 let totalPosts;
+let totalPage;
+let edges = 2;
+let currentPage = 1;
 let perPage = 5;
+let categoryId;
 const postApi = "https://itosae.com/wp-json/wp/v2/posts?_embed";
 
 const createElementWithClassName = (type, name) => {
@@ -70,20 +74,23 @@ const addEventListenerForCategorySelect = () => {
   const select = document.getElementById("js-category-select");
   select.addEventListener("change", async (event) => {
     archiveList.textContent = "";
+    const pageNation = document.getElementById("js-pagenation-list");
+    pageNation.textContent = "";
     const selectedCategoryData = await getSelectedCategoryData(setSelectedCategoryEndpoint(event.target));
     if (selectedCategoryData.length === 0) {
       archiveList.textContent = "選択されたカテゴリーの記事がありません";
       return;
     }
     archiveList.appendChild(createArticleItems(selectedCategoryData));
+    initPageNation();
   });
 }
 
 const setSelectedCategoryEndpoint = (target) => {
   const postAPI = new URL(postApi);
   postAPI.searchParams.set("per_page", perPage);
-  const selectedOptionCategoryId = target.selectedOptions[0].dataset.categoryId;
-  selectedOptionCategoryId && postAPI.searchParams.set("categories", selectedOptionCategoryId);
+  categoryId = target.selectedOptions[0].dataset.categoryId;
+  categoryId && postAPI.searchParams.set("categories", categoryId);
   return postAPI.href;
 }
 
@@ -160,8 +167,126 @@ const init = async () => {
     archiveList.appendChild(createArticleItems(postData));
     renderCategorySelect(categoryData);
     addEventListenerForCategorySelect();
+    initPageNation();
   }
 };
 
 init();
 
+const renderPageNation = () => {
+  const pageNation = createElementWithClassName("div", "archive__pagenation");
+  const pageNationList = createElementWithClassName("ul", "archive__pagenation-list");
+  pageNation.id = "js-pagenation";
+  pageNationList.id = "js-pagenation-list";
+  archiveWrapper.appendChild(pageNation).appendChild(pageNationList);
+}
+
+const createPageNationItems = (start, end) => {
+  const frag = document.createDocumentFragment();
+  let offset = start * 5;
+  for (let i = start; i < end; i++) {
+    const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
+    const anchor = createElementWithClassName("a", "archive__pagenation-link");
+    anchor.textContent = i + 1;
+    const postAPI = new URL(postApi);
+    postAPI.searchParams.set("per_page", perPage);
+    postAPI.searchParams.set("offset", offset);
+    categoryId && postAPI.searchParams.set("categories", categoryId);
+    anchor.href = postAPI.href;
+    offset += perPage;
+    frag.appendChild(pageNationItem).appendChild(anchor);
+  }
+  return frag;
+};
+
+const createLastPageNation = () => {
+  const frag = document.createDocumentFragment();
+  const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
+  const dots = createElementWithClassName("li", "archive__pagenation-item");
+  const anchor = createElementWithClassName("a", "archive__pagenation-link");
+  pageNationItem.appendChild(anchor);
+  anchor.textContent = totalPage;
+  const a = perPage * (totalPage - 1);
+  anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=${a}`;
+  dots.textContent = "...";
+  dots.style.pointerEvents = "none";
+  frag.appendChild(dots).after(pageNationItem);
+  return frag;
+};
+
+const createFirstPageNation = () => {
+  const frag = document.createDocumentFragment();
+  const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
+  const dots = createElementWithClassName("li", "archive__pagenation-item");
+  const anchor = createElementWithClassName("a", "archive__pagenation-link");
+  pageNationItem.appendChild(anchor);
+  anchor.textContent = 1;
+  dots.textContent = "...";
+  anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=0`;
+  frag.appendChild(pageNationItem).after(dots);
+  return frag;
+};
+
+const switchPageNation = () => {
+  const pageNationList = document.getElementById("js-pagenation-list");
+  if (totalPage <= edges * 2 + 1) {
+    pageNationList.appendChild(createPageNationItems(0, totalPage));
+    return;
+  }
+
+  if (currentPage < edges * 2 + 1) {
+    pageNationList.appendChild(createPageNationItems(0, edges * 2 + 1));
+    pageNationList.appendChild(createLastPageNation());
+    return;
+  }
+
+  if (currentPage > totalPage - edges * 2 + 1) {
+    pageNationList.appendChild(createFirstPageNation());
+    pageNationList.appendChild(createPageNationItems(totalPage - edges * 2 - 1, totalPage));
+    return;
+  }
+
+  pageNationList.appendChild(createFirstPageNation());
+  pageNationList.appendChild(createPageNationItems(totalPage - edges * 2 - 2, totalPage - 1));
+  pageNationList.appendChild(createLastPageNation());
+}
+
+const addEventListenerForPageNationItem = () => {
+  const pageNationItems = [...document.querySelectorAll(".archive__pagenation-link")];
+  pageNationItems.forEach((item) => {
+    item.addEventListener("click", async (event) => {
+      event.preventDefault();
+      currentPage = event.target.textContent;
+      const archiveList = document.getElementById("js-archive-list");
+      const pageNation = document.getElementById("js-pagenation-list");
+      archiveList.textContent = "";
+      pageNation.textContent = "";
+      const data = await getSelectedCategoryData(event.target.href, archiveList);
+      archiveList.appendChild(createArticleItems(data));
+      setPageNation();
+    });
+  });
+};
+
+const setPageNation = () => {
+  document.getElementById("js-pagenation-list").textContent = "";
+  switchPageNation();
+  toggleSelectedPageNation();
+  addEventListenerForPageNationItem();
+};
+
+const toggleSelectedPageNation = () => {
+  const pageNationItems = [...document.querySelectorAll(".archive__pagenation-link")];
+  pageNationItems.forEach((item) => {
+    Number(item.textContent) === Number(currentPage) &&
+      item.parentElement.classList.add("is-selected");
+  });
+};
+
+const initPageNation = () => {
+  if (totalPosts < perPage) return;
+  totalPage = Math.ceil(totalPosts / perPage);
+  currentPage = 1;
+  renderPageNation();
+  setPageNation();
+}
