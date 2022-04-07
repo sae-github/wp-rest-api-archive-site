@@ -1,6 +1,6 @@
 const archiveWrapper = document.getElementById("js-archive-wrapper");
 const archiveList = document.getElementById("js-archive-list");
-let totalPosts, totalPage, categoryId;
+let totalPosts, totalPage, categoryId, order;
 let edges = 2;
 let currentPage = 1;
 let perPage = 5;
@@ -22,13 +22,18 @@ const renderLoading = (parent) => {
 
 const removeLoading = () => document.getElementById("js-loading").remove();
 
+const setEndpointParameter = () => {
+  const postAPI = new URL(postApi);
+  postAPI.searchParams.set("per_page", perPage);
+  postAPI.searchParams.set("order", order);
+  categoryId && postAPI.searchParams.set("categories", categoryId);
+  return postAPI.href;
+}
+
 const getFetchResponseOrError = async (api) => {
   const response = await fetch(api);
-  if (response.ok) {
-    return response;
-  } else {
-    throw new Error("サーバーエラーが発生しました");
-  }
+  if (!response.ok) throw new Error("サーバーエラーが発生しました");
+  return response;
 };
 
 const renderErrorMessage = (error, parent) => {
@@ -74,7 +79,8 @@ const addEventListenerForCategorySelect = () => {
     archiveList.textContent = "";
     const pageNation = document.getElementById("js-pagenation");
     pageNation && pageNation.remove();
-    const selectedCategoryData = await getSelectedCategoryData(setSelectedCategoryEndpoint(event.target));
+    categoryId = event.target.selectedOptions[0].dataset.categoryId
+    const selectedCategoryData = await getDataFromApi(setEndpointParameter());
     if (selectedCategoryData.length === 0) {
       archiveList.textContent = "選択されたカテゴリーの記事がありません";
       return;
@@ -84,15 +90,7 @@ const addEventListenerForCategorySelect = () => {
   });
 }
 
-const setSelectedCategoryEndpoint = (target) => {
-  const postAPI = new URL(postApi);
-  postAPI.searchParams.set("per_page", perPage);
-  categoryId = target.selectedOptions[0].dataset.categoryId;
-  categoryId && postAPI.searchParams.set("categories", categoryId);
-  return postAPI.href;
-}
-
-const getSelectedCategoryData = async (api) => {
+const getDataFromApi = async (api) => {
   renderLoading(archiveWrapper);
   try {
     return await getJsonData(api);
@@ -146,7 +144,7 @@ const createThumbnail = (data) => {
 
 const getPostAndCategoryData = async () => {
   const API = {
-    post: `${postApi}&per_page=${perPage}`,
+    post: setEndpointParameter(),
     category: "https://itosae.com/wp-json/wp/v2/categories",
   };
   renderLoading(archiveWrapper);
@@ -160,7 +158,11 @@ const getPostAndCategoryData = async () => {
 };
 
 const init = async () => {
-  const [postData, categoryData] = await getPostAndCategoryData();
+  const radioButtons = [...document.querySelectorAll(".js-radio-button")];
+  order = radioButtons.find((button) => button.checked).id;
+  const data = await getPostAndCategoryData();
+  if (!data) return;
+  const [postData, categoryData] = data;
   if (postData && categoryData) {
     archiveList.appendChild(createArticleItems(postData));
     renderCategorySelect(categoryData);
@@ -186,10 +188,8 @@ const createPageNationItems = (start, end) => {
     const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
     const anchor = createElementWithClassName("a", "archive__pagenation-link");
     anchor.textContent = i + 1;
-    const postAPI = new URL(postApi);
-    postAPI.searchParams.set("per_page", perPage);
+    const postAPI = new URL(setEndpointParameter());
     postAPI.searchParams.set("offset", offset);
-    categoryId && postAPI.searchParams.set("categories", categoryId);
     anchor.href = postAPI.href;
     offset += perPage;
     frag.appendChild(pageNationItem).appendChild(anchor);
@@ -210,7 +210,9 @@ const createLastPageNation = () => {
   const anchor = createElementWithClassName("a", "archive__pagenation-link");
   pageNationItem.appendChild(anchor);
   anchor.textContent = totalPage;
-  anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=${perPage * (totalPage - 1)}`;
+  const postAPI = new URL(setEndpointParameter());
+  postAPI.searchParams.set("offset", perPage * (totalPage - 1));
+  anchor.href = postAPI.href;
   frag.appendChild(createEllipsis()).after(pageNationItem);
   return frag;
 };
@@ -221,7 +223,9 @@ const createFirstPageNation = () => {
   const anchor = createElementWithClassName("a", "archive__pagenation-link");
   pageNationItem.appendChild(anchor);
   anchor.textContent = 1;
-  anchor.href = `https://itosae.com/wp-json/wp/v2/posts?_embed&per_page=5&offset=0`;
+  const postAPI = new URL(setEndpointParameter());
+  postAPI.searchParams.set("offset", 0);
+  anchor.href = postAPI.href;
   frag.appendChild(pageNationItem).after(createEllipsis());
   return frag;
 };
@@ -261,17 +265,18 @@ const addEventListenerForPageNationItem = () => {
       const pageNation = document.getElementById("js-pagenation-list");
       archiveList.textContent = "";
       pageNation.textContent = "";
-      const data = await getSelectedCategoryData(event.target.href, archiveList);
-      archiveList.appendChild(createArticleItems(data));
-      setPageNation();
+      const data = await getDataFromApi(event.target.href, archiveList);
+      if (data) {
+        archiveList.appendChild(createArticleItems(data));
+        setPageNation();
+      }
     });
   });
 };
 
 const setPageNation = () => {
-  const pageNationLList = document.getElementById("js-pagenation-list")
-  pageNationLList.textContent = "";
-  pageNationLList.appendChild(createPageNation());
+  const pageNationList = document.getElementById("js-pagenation-list")
+  pageNationList.appendChild(createPageNation());
   toggleSelectedPageNation();
   addEventListenerForPageNationItem();
 };
@@ -287,7 +292,33 @@ const toggleSelectedPageNation = () => {
 const initPageNation = () => {
   if (totalPosts < perPage) return;
   totalPage = Math.ceil(totalPosts / perPage);
-  currentPage = 1;
   renderPageNation();
   setPageNation();
+  toggleSelectedPageNation();
 }
+
+const radioButtons = [...document.querySelectorAll(".js-radio-button")];
+radioButtons.forEach((button) => {
+  button.addEventListener("change", async (event) => {
+    event.preventDefault();
+    const archiveList = document.getElementById("js-archive-list");
+    const pageNation = document.getElementById("js-pagenation")
+    archiveList.textContent = "";
+    pageNation && pageNation.remove();
+
+    currentPage = 1;
+    order = event.target.id;
+
+    const orderData = await getDataFromApi(setEndpointParameter());
+
+    if (orderData.length === 0) {
+      archiveList.textContent = "選択されたカテゴリーの記事がありません";
+      return;
+    }
+
+    if (orderData) {
+      archiveList.appendChild(createArticleItems(orderData));
+      initPageNation();
+    }
+  });
+});
