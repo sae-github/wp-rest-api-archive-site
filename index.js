@@ -1,11 +1,9 @@
 const archiveWrapper = document.getElementById("js-archive-wrapper");
 const archiveList = document.getElementById("js-archive-list");
-let totalPosts;
-let totalPage;
+let totalPosts, totalPage, categoryId;
 let edges = 2;
 let currentPage = 1;
 let perPage = 5;
-let categoryId;
 const postApi = "https://itosae.com/wp-json/wp/v2/posts?_embed";
 
 const createElementWithClassName = (type, name) => {
