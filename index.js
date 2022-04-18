@@ -1,13 +1,27 @@
 const archiveWrapper = document.getElementById("js-archive-wrapper");
-const archiveList = document.getElementById("js-archive-list");
+const archiveBox = document.getElementById("js-archive-box");
 const searchField = document.getElementById("js-search-field");
 const searchButton = document.getElementById("js-search-button");
 
-let totalPosts, totalPage, categoryId, order, search;
+let totalPosts, totalPage;
 let edges = 2;
-let currentPage = 1;
-let perPage = 5;
-const postApi = "https://itosae.com/wp-json/wp/v2/posts?_embed&context=embed";
+
+const endpoint = {
+  postApi: "https://itosae.com/wp-json/wp/v2/posts?_embed&context=embed",
+  perPage: 5,
+  currentPage: 1,
+  order: "",
+  search: "",
+  category: "",
+  get url() {
+    const postAPI = new URL(this.postApi);
+    postAPI.searchParams.set("per_page", this.perPage);
+    postAPI.searchParams.set("order", this.order);
+    this.search && postAPI.searchParams.set("search", this.search);
+    this.category && postAPI.searchParams.set("categories", this.category);
+    return postAPI.href;
+  }
+}
 
 const createElementWithClassName = (type, name) => {
   const element = document.createElement(type);
@@ -25,25 +39,16 @@ const renderLoading = (parent) => {
 
 const removeLoading = () => document.getElementById("js-loading").remove();
 
-const setEndpointParameter = () => {
-  const postAPI = new URL(postApi);
-  postAPI.searchParams.set("per_page", perPage);
-  postAPI.searchParams.set("order", order);
-  search && postAPI.searchParams.set("search", search);
-  categoryId && postAPI.searchParams.set("categories", categoryId);
-  return postAPI.href;
-}
-
 const getFetchResponseOrError = async (api) => {
   const response = await fetch(api);
   if (!response.ok) throw new Error("サーバーエラーが発生しました");
   return response;
 };
 
-const renderErrorMessage = (error, parent) => {
-  const errorMessage = createElementWithClassName("p", "error-message");
-  errorMessage.textContent = error;
-  parent.appendChild(errorMessage);
+const createElementWithMessage = (message) => {
+  const element = createElementWithClassName("p", "error-message");
+  element.textContent = message;
+  return element;
 };
 
 const getTotalPosts = (response) => response.headers.get("X-WP-Total");
@@ -79,20 +84,14 @@ const createSelectOptions = (data) => {
 
 const addEventListenerForCategorySelect = () => {
   const select = document.getElementById("js-category-select");
-  select.addEventListener("change", async (event) => {
-    search = undefined;
+  select.addEventListener("change", (event) => {
+    endpoint.search = "";
     searchField.value = "";
-    archiveList.textContent = "";
-    const pageNation = document.getElementById("js-pagenation");
-    pageNation && pageNation.remove();
-    categoryId = event.target.selectedOptions[0].dataset.categoryId
-    const selectedCategoryData = await getDataFromApi(setEndpointParameter());
-    if (selectedCategoryData.length === 0) {
-      archiveList.textContent = "選択されたカテゴリーの記事がありません";
-      return;
-    }
-    archiveList.appendChild(createArticleItems(selectedCategoryData));
-    initPageNation();
+    searchButton.disabled = true;
+    endpoint.currentPage = 1;
+    endpoint.category = event.target.selectedOptions[0].dataset.categoryId;
+    removePageNationAndArchiveList();
+    updateArchiveWrapper(endpoint.url);
   });
 }
 
@@ -101,7 +100,7 @@ const getDataFromApi = async (api) => {
   try {
     return await getJsonData(api);
   } catch (error) {
-    renderErrorMessage(error, archiveWrapper);
+    archiveWrapper.append(createElementWithMessage(error));
   } finally {
     removeLoading();
   }
@@ -116,8 +115,10 @@ const createArticleDate = (data) => {
   return date;
 };
 
-const createArticleItems = (data) => {
-  const frag = document.createDocumentFragment();
+const renderArchiveList = (data) => {
+  const fragment = document.createDocumentFragment();
+  const archiveList = createElementWithClassName("ul", "archive__list");
+  archiveList.id = "js-archive-list"
   data.forEach((d) => {
     const archiveItem = createElementWithClassName("li", "archive__item");
     const archiveLink = createElementWithClassName("a", "archive__item-link");
@@ -130,13 +131,13 @@ const createArticleItems = (data) => {
     archiveWrapper.appendChild(label).after(title);
     archiveWrapper.appendChild(createArticleDate(d));
     archiveLink.appendChild(createThumbnail(d));
-    frag
+    fragment
       .appendChild(archiveItem)
       .appendChild(archiveLink)
       .appendChild(archiveWrapper);
-  })
-  return frag;
-};
+  });
+  archiveWrapper.appendChild(archiveList).append(fragment);
+}
 
 const createThumbnail = (data) => {
   const thumbnailUrl = data._embedded["wp:featuredmedia"][0].source_url;
@@ -150,14 +151,14 @@ const createThumbnail = (data) => {
 
 const getPostAndCategoryData = async () => {
   const API = {
-    post: setEndpointParameter(),
+    post: endpoint.url,
     category: "https://itosae.com/wp-json/wp/v2/categories",
   };
   renderLoading(archiveWrapper);
   try {
     return await Promise.all(Object.values(API).map(getJsonData));
   } catch (error) {
-    renderErrorMessage(error, archiveWrapper);
+    archiveWrapper.append(createElementWithMessage(error));
   } finally {
     removeLoading();
   }
@@ -165,12 +166,12 @@ const getPostAndCategoryData = async () => {
 
 const init = async () => {
   const radioButtons = [...document.querySelectorAll(".js-radio-button")];
-  order = radioButtons.find((button) => button.checked).id;
+  endpoint.order = radioButtons.find(button => button.checked).id;
   const data = await getPostAndCategoryData();
   if (!data) return;
   const [postData, categoryData] = data;
   if (postData && categoryData) {
-    archiveList.appendChild(createArticleItems(postData));
+    renderArchiveList(postData);
     renderCategorySelect(categoryData);
     addEventListenerForCategorySelect();
     initPageNation();
@@ -184,7 +185,7 @@ const renderPageNation = () => {
   const pageNationList = createElementWithClassName("ul", "archive__pagenation-list");
   pageNation.id = "js-pagenation";
   pageNationList.id = "js-pagenation-list";
-  archiveWrapper.appendChild(pageNation).appendChild(pageNationList);
+  archiveBox.appendChild(pageNation).appendChild(pageNationList);
 }
 
 const createPageNationItems = (start, end) => {
@@ -194,10 +195,10 @@ const createPageNationItems = (start, end) => {
     const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
     const anchor = createElementWithClassName("a", "archive__pagenation-link");
     anchor.textContent = i + 1;
-    const postAPI = new URL(setEndpointParameter());
+    const postAPI = new URL(endpoint.url);
     postAPI.searchParams.set("offset", offset);
     anchor.href = postAPI.href;
-    offset += perPage;
+    offset += endpoint.perPage;
     frag.appendChild(pageNationItem).appendChild(anchor);
   }
   return frag;
@@ -216,8 +217,8 @@ const createLastPageNation = () => {
   const anchor = createElementWithClassName("a", "archive__pagenation-link");
   pageNationItem.appendChild(anchor);
   anchor.textContent = totalPage;
-  const postAPI = new URL(setEndpointParameter());
-  postAPI.searchParams.set("offset", perPage * (totalPage - 1));
+  const postAPI = new URL(endpoint.url);
+  postAPI.searchParams.set("offset", endpoint.perPage * (totalPage - 1));
   anchor.href = postAPI.href;
   frag.appendChild(createEllipsis()).after(pageNationItem);
   return frag;
@@ -229,7 +230,7 @@ const createFirstPageNation = () => {
   const anchor = createElementWithClassName("a", "archive__pagenation-link");
   pageNationItem.appendChild(anchor);
   anchor.textContent = 1;
-  const postAPI = new URL(setEndpointParameter());
+  const postAPI = new URL(endpoint.url);
   postAPI.searchParams.set("offset", 0);
   anchor.href = postAPI.href;
   frag.appendChild(pageNationItem).after(createEllipsis());
@@ -243,13 +244,13 @@ const createPageNation = () => {
     return frag;
   }
 
-  if (currentPage < edges * 2 + 1) {
+  if (endpoint.currentPage < edges * 2 + 1) {
     frag.appendChild(createPageNationItems(0, edges * 2 + 1))
     frag.appendChild(createLastPageNation());
     return frag;
   }
 
-  if (currentPage > totalPage - edges * 2 + 1) {
+  if (endpoint.currentPage > totalPage - edges * 2 + 1) {
     frag.appendChild(createFirstPageNation())
     frag.appendChild(createPageNationItems(totalPage - edges * 2 - 1, totalPage));
     return frag;
@@ -264,17 +265,11 @@ const createPageNation = () => {
 const addEventListenerForPageNationItem = () => {
   const pageNationItems = [...document.querySelectorAll(".archive__pagenation-link")];
   pageNationItems.forEach((item) => {
-    item.addEventListener("click", async (event) => {
+    item.addEventListener("click", (event) => {
       event.preventDefault();
-      currentPage = event.target.textContent;
-      const pageNation = document.getElementById("js-pagenation-list");
-      archiveList.textContent = "";
-      pageNation.textContent = "";
-      const data = await getDataFromApi(event.target.href, archiveList);
-      if (data) {
-        archiveList.appendChild(createArticleItems(data));
-        setPageNation();
-      }
+      endpoint.currentPage = event.target.textContent;
+      removePageNationAndArchiveList();
+      updateArchiveWrapper(event.target.href);
     });
   });
 };
@@ -289,14 +284,14 @@ const setPageNation = () => {
 const toggleSelectedPageNation = () => {
   const pageNationItems = [...document.querySelectorAll(".archive__pagenation-link")];
   pageNationItems.forEach((item) => {
-    Number(item.textContent) === Number(currentPage) &&
+    Number(item.textContent) === Number(endpoint.currentPage) &&
       item.parentElement.classList.add("is-selected");
   });
 };
 
 const initPageNation = () => {
-  if (totalPosts < perPage) return;
-  totalPage = Math.ceil(totalPosts / perPage);
+  if (totalPosts < endpoint.perPage) return;
+  totalPage = Math.ceil(totalPosts / endpoint.perPage);
   renderPageNation();
   setPageNation();
   toggleSelectedPageNation();
@@ -304,26 +299,12 @@ const initPageNation = () => {
 
 const radioButtons = [...document.querySelectorAll(".js-radio-button")];
 radioButtons.forEach((button) => {
-  button.addEventListener("change", async (event) => {
+  button.addEventListener("change", (event) => {
     event.preventDefault();
-    const pageNation = document.getElementById("js-pagenation")
-    archiveList.textContent = "";
-    pageNation && pageNation.remove();
-
-    currentPage = 1;
-    order = event.target.id;
-
-    const orderData = await getDataFromApi(setEndpointParameter());
-
-    if (orderData.length === 0) {
-      archiveList.textContent = "選択されたカテゴリーの記事がありません";
-      return;
-    }
-
-    if (orderData) {
-      archiveList.appendChild(createArticleItems(orderData));
-      initPageNation();
-    }
+    endpoint.currentPage = 1;
+    endpoint.order = event.target.id;
+    removePageNationAndArchiveList();
+    updateArchiveWrapper(endpoint.url);
   });
 });
 
@@ -332,20 +313,29 @@ searchField.addEventListener("change", (event) => {
   searchButton.disabled = trimmedValue === "";
 });
 
-searchButton.addEventListener("click", async (event) => {
-  event.preventDefault();
-  categoryId = undefined;
-  search = searchField.value.trim();
+const removePageNationAndArchiveList = () => {
   const pageNation = document.getElementById("js-pagenation");
-  const select = document.getElementById("js-category-select");
-  select.value = "default";
   pageNation && pageNation.remove();
-  archiveList.textContent = "";
-  const data = await getDataFromApi(setEndpointParameter());
+  archiveWrapper.textContent = "";
+}
+
+const updateArchiveWrapper = async (endpoint) => {
+  const data = await getDataFromApi(endpoint);
   if (data.length === 0) {
-    archiveList.textContent = "対象の記事が見つかりませんでした";
+    archiveWrapper.append(createElementWithMessage("対象の記事が見つかりませんでした"));
     return;
   }
-  archiveList.appendChild(createArticleItems(data));
+  renderArchiveList(data);
   initPageNation();
-})
+}
+
+searchButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  endpoint.category = "";
+  endpoint.currentPage = 1;
+  endpoint.search = searchField.value.trim();
+  document.getElementById("js-category-select").value = "default";
+  removePageNationAndArchiveList();
+  updateArchiveWrapper(endpoint.url);
+});
+
