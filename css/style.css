@@ -149,6 +149,11 @@ a {
   cursor: pointer;
 }
 
+.search__button:disabled {
+  border: 1px solid rgb(215, 215, 215);
+  cursor: auto;
+}
+
 .archive__select::before {
   position: absolute;
   top: 50%;

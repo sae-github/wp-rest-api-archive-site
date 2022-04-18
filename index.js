@@ -1,10 +1,13 @@
 const archiveWrapper = document.getElementById("js-archive-wrapper");
 const archiveList = document.getElementById("js-archive-list");
-let totalPosts, totalPage, categoryId, order;
+const searchField = document.getElementById("js-search-field");
+const searchButton = document.getElementById("js-search-button");
+
+let totalPosts, totalPage, categoryId, order, search;
 let edges = 2;
 let currentPage = 1;
 let perPage = 5;
-const postApi = "https://itosae.com/wp-json/wp/v2/posts?_embed";
+const postApi = "https://itosae.com/wp-json/wp/v2/posts?_embed&context=embed";
 
 const createElementWithClassName = (type, name) => {
   const element = document.createElement(type);
@@ -26,6 +29,7 @@ const setEndpointParameter = () => {
   const postAPI = new URL(postApi);
   postAPI.searchParams.set("per_page", perPage);
   postAPI.searchParams.set("order", order);
+  search && postAPI.searchParams.set("search", search);
   categoryId && postAPI.searchParams.set("categories", categoryId);
   return postAPI.href;
 }
@@ -76,6 +80,8 @@ const createSelectOptions = (data) => {
 const addEventListenerForCategorySelect = () => {
   const select = document.getElementById("js-category-select");
   select.addEventListener("change", async (event) => {
+    search = undefined;
+    searchField.value = "";
     archiveList.textContent = "";
     const pageNation = document.getElementById("js-pagenation");
     pageNation && pageNation.remove();
@@ -261,7 +267,6 @@ const addEventListenerForPageNationItem = () => {
     item.addEventListener("click", async (event) => {
       event.preventDefault();
       currentPage = event.target.textContent;
-      const archiveList = document.getElementById("js-archive-list");
       const pageNation = document.getElementById("js-pagenation-list");
       archiveList.textContent = "";
       pageNation.textContent = "";
@@ -301,7 +306,6 @@ const radioButtons = [...document.querySelectorAll(".js-radio-button")];
 radioButtons.forEach((button) => {
   button.addEventListener("change", async (event) => {
     event.preventDefault();
-    const archiveList = document.getElementById("js-archive-list");
     const pageNation = document.getElementById("js-pagenation")
     archiveList.textContent = "";
     pageNation && pageNation.remove();
@@ -322,3 +326,22 @@ radioButtons.forEach((button) => {
     }
   });
 });
+
+searchField.addEventListener("change", (event) => {
+  const trimmedValue = event.target.value.trim();
+  searchButton.disabled = trimmedValue === "";
+});
+
+searchButton.addEventListener("click", async (event) => {
+  event.preventDefault();
+  categoryId = undefined;
+  search = searchField.value.trim();
+  const pageNation = document.getElementById("js-pagenation");
+  const select = document.getElementById("js-category-select");
+  select.value = "default";
+  pageNation && pageNation.remove();
+  archiveList.textContent = "";
+  const data = await getDataFromApi(setEndpointParameter());
+  archiveList.appendChild(createArticleItems(data));
+  initPageNation();
+})
