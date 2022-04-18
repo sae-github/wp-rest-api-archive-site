@@ -342,6 +342,10 @@ searchButton.addEventListener("click", async (event) => {
   pageNation && pageNation.remove();
   archiveList.textContent = "";
   const data = await getDataFromApi(setEndpointParameter());
+  if (data.length === 0) {
+    archiveList.textContent = "対象の記事が見つかりませんでした";
+    return;
+  }
   archiveList.appendChild(createArticleItems(data));
   initPageNation();
 })
