@@ -41,7 +41,12 @@ const removeLoading = () => document.getElementById("js-loading").remove();
 
 const getFetchResponseOrError = async (api) => {
   const response = await fetch(api);
-  if (!response.ok) throw new Error("サーバーエラーが発生しました");
+  if (!response.ok) {
+    const errorMessage = `${response.status}:${response.statusText}`;
+    console.error(errorMessage);
+    archiveWrapper.append(createElementWithMessage(errorMessage));
+    return;
+  }
   return response;
 };
 
