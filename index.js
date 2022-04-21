@@ -3,8 +3,7 @@ const archiveBox = document.getElementById("js-archive-box");
 const searchField = document.getElementById("js-search-field");
 const searchButton = document.getElementById("js-search-button");
 
-let totalPosts, totalPage;
-let edges = 2;
+let totalPosts;
 
 const endpoint = {
   postApi: "https://itosae.com/wp-json/wp/v2/posts?_embed&context=embed",
@@ -20,6 +19,13 @@ const endpoint = {
     this.search && postAPI.searchParams.set("search", this.search);
     this.category && postAPI.searchParams.set("categories", this.category);
     return postAPI.href;
+  }
+}
+
+const pageNation = {
+  edges: 2,
+  get totalPage() {
+    return Math.ceil(totalPosts / endpoint.perPage);
   }
 }
 
@@ -216,54 +222,32 @@ const createEllipsis = () => {
   return ellipsis;
 }
 
-const createLastPageNation = () => {
-  const frag = document.createDocumentFragment();
-  const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
-  const anchor = createElementWithClassName("a", "archive__pagenation-link");
-  pageNationItem.appendChild(anchor);
-  anchor.textContent = totalPage;
-  const postAPI = new URL(endpoint.url);
-  postAPI.searchParams.set("offset", endpoint.perPage * (totalPage - 1));
-  anchor.href = postAPI.href;
-  frag.appendChild(createEllipsis()).after(pageNationItem);
-  return frag;
-};
-
-const createFirstPageNation = () => {
-  const frag = document.createDocumentFragment();
-  const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
-  const anchor = createElementWithClassName("a", "archive__pagenation-link");
-  pageNationItem.appendChild(anchor);
-  anchor.textContent = 1;
-  const postAPI = new URL(endpoint.url);
-  postAPI.searchParams.set("offset", 0);
-  anchor.href = postAPI.href;
-  frag.appendChild(pageNationItem).after(createEllipsis());
-  return frag;
-};
-
 const createPageNation = () => {
   const frag = document.createDocumentFragment();
-  if (totalPage <= edges * 2 + 1) {
-    frag.appendChild(createPageNationItems(0, totalPage));
+  if (pageNation.totalPage <= pageNation.edges * 2 + 1) {
+    frag.appendChild(createPageNationItems(0, pageNation.totalPage));
     return frag;
   }
 
-  if (endpoint.currentPage < edges * 2 + 1) {
-    frag.appendChild(createPageNationItems(0, edges * 2 + 1))
-    frag.appendChild(createLastPageNation());
+  if (endpoint.currentPage < pageNation.edges * 2 + 1) {
+    frag.appendChild(createPageNationItems(0, pageNation.edges * 2 + 1))
+    frag.appendChild(createEllipsis());
+    frag.appendChild(createPageNationItems(pageNation.totalPage - 1, pageNation.totalPage));
     return frag;
   }
 
-  if (endpoint.currentPage > totalPage - edges * 2 + 1) {
-    frag.appendChild(createFirstPageNation())
-    frag.appendChild(createPageNationItems(totalPage - edges * 2 - 1, totalPage));
+  if (endpoint.currentPage > pageNation.totalPage - pageNation.edges * 2 + 1) {
+    frag.appendChild(createPageNationItems(0, 1));
+    frag.appendChild(createEllipsis());
+    frag.appendChild(createPageNationItems(pageNation.totalPage - pageNation.edges * 2 - 1, pageNation.totalPage));
     return frag;
   }
 
-  frag.appendChild(createFirstPageNation());
-  frag.appendChild(createPageNationItems(totalPage - edges * 2 - 2, totalPage - 1))
-  frag.appendChild(createLastPageNation());
+  frag.appendChild(createPageNationItems(0, 1));
+  frag.appendChild(createEllipsis());
+  frag.appendChild(createPageNationItems(endpoint.currentPage - pageNation.edges - 1, Number(endpoint.currentPage) + pageNation.edges));
+  frag.appendChild(createEllipsis());
+  frag.appendChild(createPageNationItems(pageNation.totalPage - 1, pageNation.totalPage));
   return frag;
 }
 
@@ -294,9 +278,9 @@ const toggleSelectedPageNation = () => {
   });
 };
 
+
 const initPageNation = () => {
   if (totalPosts < endpoint.perPage) return;
-  totalPage = Math.ceil(totalPosts / endpoint.perPage);
   renderPageNation();
   setPageNation();
   toggleSelectedPageNation();
