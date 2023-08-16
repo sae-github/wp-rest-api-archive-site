@@ -19,15 +19,15 @@ const endpoint = {
     this.search && postAPI.searchParams.set("search", this.search);
     this.category && postAPI.searchParams.set("categories", this.category);
     return postAPI.href;
-  }
-}
+  },
+};
 
 const pageNation = {
   edges: 2,
   get totalPage() {
     return Math.ceil(totalPosts / endpoint.perPage);
-  }
-}
+  },
+};
 
 const createElementWithClassName = (type, name) => {
   const element = document.createElement(type);
@@ -104,7 +104,7 @@ const addEventListenerForCategorySelect = () => {
     removePageNationAndArchiveList();
     updateArchiveWrapper(endpoint.url);
   });
-}
+};
 
 const getDataFromApi = async (api) => {
   renderLoading(archiveWrapper);
@@ -115,7 +115,7 @@ const getDataFromApi = async (api) => {
   } finally {
     removeLoading();
   }
-}
+};
 
 const createArticleDate = (data) => {
   const date = createElementWithClassName("p", "archive__item-date");
@@ -129,11 +129,14 @@ const createArticleDate = (data) => {
 const renderArchiveList = (data) => {
   const fragment = document.createDocumentFragment();
   const archiveList = createElementWithClassName("ul", "archive__list");
-  archiveList.id = "js-archive-list"
+  archiveList.id = "js-archive-list";
   data.forEach((d) => {
     const archiveItem = createElementWithClassName("li", "archive__item");
     const archiveLink = createElementWithClassName("a", "archive__item-link");
-    const archiveWrapper = createElementWithClassName("div", "archive__item-text");
+    const archiveWrapper = createElementWithClassName(
+      "div",
+      "archive__item-text"
+    );
     const title = createElementWithClassName("p", "archive__item-title");
     const label = createElementWithClassName("span", "archive__item-label");
     label.textContent = d.category_name;
@@ -148,14 +151,16 @@ const renderArchiveList = (data) => {
       .appendChild(archiveWrapper);
   });
   archiveWrapper.appendChild(archiveList).append(fragment);
-}
+};
 
 const createThumbnail = (data) => {
-  const thumbnailUrl = data._embedded["wp:featuredmedia"][0].source_url;
-  const thumbnailWrapper = createElementWithClassName("div", "archive__item-thumbnail");
+  const thumbnailUrl = data._embedded["wp:featuredmedia"]?.[0].source_url;
+  const thumbnailWrapper = createElementWithClassName(
+    "div",
+    "archive__item-thumbnail"
+  );
   const img = document.createElement("img");
-  img.src = thumbnailUrl;
-  thumbnailUrl === "" && (img.src = "./img/no-image.jpeg");
+  img.src = thumbnailUrl || (img.src = "./img/no-image.jpeg");
   thumbnailWrapper.appendChild(img);
   return thumbnailWrapper;
 };
@@ -177,7 +182,7 @@ const getPostAndCategoryData = async () => {
 
 const init = async () => {
   const radioButtons = [...document.querySelectorAll(".js-radio-button")];
-  endpoint.order = radioButtons.find(button => button.checked).id;
+  endpoint.order = radioButtons.find((button) => button.checked).id;
   const data = await getPostAndCategoryData();
   if (!data) return;
   const [postData, categoryData] = data;
@@ -193,17 +198,23 @@ init();
 
 const renderPageNation = () => {
   const pageNation = createElementWithClassName("div", "archive__pagenation");
-  const pageNationList = createElementWithClassName("ul", "archive__pagenation-list");
+  const pageNationList = createElementWithClassName(
+    "ul",
+    "archive__pagenation-list"
+  );
   pageNation.id = "js-pagenation";
   pageNationList.id = "js-pagenation-list";
   archiveBox.appendChild(pageNation).appendChild(pageNationList);
-}
+};
 
 const createPageNationItems = (start, end) => {
   const frag = document.createDocumentFragment();
   let offset = start * 5;
   for (let i = start; i < end; i++) {
-    const pageNationItem = createElementWithClassName("li", "archive__pagenation-item");
+    const pageNationItem = createElementWithClassName(
+      "li",
+      "archive__pagenation-item"
+    );
     const anchor = createElementWithClassName("a", "archive__pagenation-link");
     anchor.textContent = i + 1;
     const postAPI = new URL(endpoint.url);
@@ -220,7 +231,7 @@ const createEllipsis = () => {
   ellipsis.textContent = "...";
   ellipsis.style.pointerEvents = "none";
   return ellipsis;
-}
+};
 
 const createPageNation = () => {
   const frag = document.createDocumentFragment();
@@ -230,29 +241,45 @@ const createPageNation = () => {
   }
 
   if (endpoint.currentPage < pageNation.edges * 2 + 1) {
-    frag.appendChild(createPageNationItems(0, pageNation.edges * 2 + 1))
+    frag.appendChild(createPageNationItems(0, pageNation.edges * 2 + 1));
     frag.appendChild(createEllipsis());
-    frag.appendChild(createPageNationItems(pageNation.totalPage - 1, pageNation.totalPage));
+    frag.appendChild(
+      createPageNationItems(pageNation.totalPage - 1, pageNation.totalPage)
+    );
     return frag;
   }
 
   if (endpoint.currentPage > pageNation.totalPage - pageNation.edges * 2 + 1) {
     frag.appendChild(createPageNationItems(0, 1));
     frag.appendChild(createEllipsis());
-    frag.appendChild(createPageNationItems(pageNation.totalPage - pageNation.edges * 2 - 1, pageNation.totalPage));
+    frag.appendChild(
+      createPageNationItems(
+        pageNation.totalPage - pageNation.edges * 2 - 1,
+        pageNation.totalPage
+      )
+    );
     return frag;
   }
 
   frag.appendChild(createPageNationItems(0, 1));
   frag.appendChild(createEllipsis());
-  frag.appendChild(createPageNationItems(endpoint.currentPage - pageNation.edges - 1, Number(endpoint.currentPage) + pageNation.edges));
+  frag.appendChild(
+    createPageNationItems(
+      endpoint.currentPage - pageNation.edges - 1,
+      Number(endpoint.currentPage) + pageNation.edges
+    )
+  );
   frag.appendChild(createEllipsis());
-  frag.appendChild(createPageNationItems(pageNation.totalPage - 1, pageNation.totalPage));
+  frag.appendChild(
+    createPageNationItems(pageNation.totalPage - 1, pageNation.totalPage)
+  );
   return frag;
-}
+};
 
 const addEventListenerForPageNationItem = () => {
-  const pageNationItems = [...document.querySelectorAll(".archive__pagenation-link")];
+  const pageNationItems = [
+    ...document.querySelectorAll(".archive__pagenation-link"),
+  ];
   pageNationItems.forEach((item) => {
     item.addEventListener("click", (event) => {
       event.preventDefault();
@@ -264,27 +291,28 @@ const addEventListenerForPageNationItem = () => {
 };
 
 const setPageNation = () => {
-  const pageNationList = document.getElementById("js-pagenation-list")
+  const pageNationList = document.getElementById("js-pagenation-list");
   pageNationList.appendChild(createPageNation());
   toggleSelectedPageNation();
   addEventListenerForPageNationItem();
 };
 
 const toggleSelectedPageNation = () => {
-  const pageNationItems = [...document.querySelectorAll(".archive__pagenation-link")];
+  const pageNationItems = [
+    ...document.querySelectorAll(".archive__pagenation-link"),
+  ];
   pageNationItems.forEach((item) => {
     Number(item.textContent) === Number(endpoint.currentPage) &&
       item.parentElement.classList.add("is-selected");
   });
 };
 
-
 const initPageNation = () => {
   if (totalPosts < endpoint.perPage) return;
   renderPageNation();
   setPageNation();
   toggleSelectedPageNation();
-}
+};
 
 const radioButtons = [...document.querySelectorAll(".js-radio-button")];
 radioButtons.forEach((button) => {
@@ -306,17 +334,19 @@ const removePageNationAndArchiveList = () => {
   const pageNation = document.getElementById("js-pagenation");
   pageNation && pageNation.remove();
   archiveWrapper.textContent = "";
-}
+};
 
 const updateArchiveWrapper = async (endpoint) => {
   const data = await getDataFromApi(endpoint);
   if (data.length === 0) {
-    archiveWrapper.append(createElementWithMessage("対象の記事が見つかりませんでした"));
+    archiveWrapper.append(
+      createElementWithMessage("対象の記事が見つかりませんでした")
+    );
     return;
   }
   renderArchiveList(data);
   initPageNation();
-}
+};
 
 searchButton.addEventListener("click", (event) => {
   event.preventDefault();
@@ -327,4 +357,3 @@ searchButton.addEventListener("click", (event) => {
   removePageNationAndArchiveList();
   updateArchiveWrapper(endpoint.url);
 });
-
